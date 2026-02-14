@@ -1,19 +1,16 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import connectDB from '@/utils/db';
 import TelegramSession from '@/models/TelegramSession';
 
+const STATIC_USER_ID = "admin-user"; // fixed user id
+
 export async function GET() {
   try {
-    const cookieStore = cookies();
-    const authToken = cookieStore.get('auth_token');
-
-    if (!authToken) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
     await connectDB();
-    const sessions = await TelegramSession.find({ userId: authToken.value, isActive: true }).sort({ createdAt: -1 });
+    const sessions = await TelegramSession.find({
+      userId: STATIC_USER_ID,
+      isActive: true
+    }).sort({ createdAt: -1 });
 
     return NextResponse.json({ success: true, sessions });
   } catch (error) {
@@ -23,13 +20,6 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const cookieStore = cookies();
-    const authToken = cookieStore.get('auth_token');
-
-    if (!authToken) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
     const { sessionString, ownerName, phoneNumber } = await request.json();
 
     if (!sessionString || !ownerName) {
@@ -37,11 +27,13 @@ export async function POST(request) {
     }
 
     await connectDB();
+
     const session = await TelegramSession.create({
-      userId: authToken.value,
+      userId: STATIC_USER_ID,
       sessionString,
       ownerName,
-      phoneNumber
+      phoneNumber,
+      isActive: true
     });
 
     return NextResponse.json({ success: true, session });
@@ -52,13 +44,6 @@ export async function POST(request) {
 
 export async function DELETE(request) {
   try {
-    const cookieStore = cookies();
-    const authToken = cookieStore.get('auth_token');
-
-    if (!authToken) {
-      return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
-    }
-
     const { searchParams } = new URL(request.url);
     const sessionId = searchParams.get('id');
 
@@ -67,8 +52,9 @@ export async function DELETE(request) {
     }
 
     await connectDB();
+
     await TelegramSession.findOneAndUpdate(
-      { _id: sessionId, userId: authToken.value },
+      { _id: sessionId, userId: STATIC_USER_ID },
       { isActive: false }
     );
 
